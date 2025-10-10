@@ -192,7 +192,7 @@ If you find this work helpful, please cite our paper.
 
 ```bash
 @article{liu2025citylens,
-  title={CityLens: Evaluating Large Language-Vision Models for Urban Socioeconomic Sensing},
+  title={CityLens: Evaluating Large Vision-Language Models for Urban Socioeconomic Sensing},
   author={Liu, Tianhui and Pang, Hetian and Zhang, Xin and Ouyang, Tianjian and Zhang, Zhiyuan and Feng, Jie and Li, Yong and Pan, Hui},
   journal={arXiv preprint arXiv:2506.00530},
   year={2025}
