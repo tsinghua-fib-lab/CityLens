@@ -15,30 +15,17 @@ def compute_regression_metrics(pred_list, true_list):
 def extract_float(value):
     if isinstance(value, (float, int)):
         return float(value)
-
-    # 2️⃣ 如果是字符串
     if isinstance(value, str):
-        # 2.1 如果字符串太长，直接跳过
         if len(value) > 100:
             return None
-
-        # 2.2 如果字符串中有非数字字符（除了小数点、逗号）
         if not re.match(r"^[\d\.,]+$", value.strip()):
-            # 有其他字符 → 认为无效
             return None
-
-        # 2.3 替换逗号
         value_str = value.replace(",", "")
-
         try:
             return float(value_str)
         except ValueError:
             return None
-
-    # 3️⃣ 其他情况（比如 None、list 等）直接返回 None
     return None
-
-
 def process_json(json_path, prompt_type):
     with open(json_path, 'r') as f:
         data = json.load(f)
@@ -89,8 +76,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     model_name_full = args.model_name.replace("/", "_")
-    response_path = f'/data5/liutianhui/UrbanSensing/results/transport/{args.task_name}/{args.city_name}/{model_name_full}_{args.prompt_type}_response.json'
-    summary_path = f'/data5/liutianhui/UrbanSensing/results/transport/{args.task_name}_summary.csv'
+    response_path = f''
+    summary_path = f''
     y_true, y_pred = process_json(response_path, args.prompt_type)
     if len(y_true) == 0 or len(y_pred) == 0:
         print("No valid data found.")

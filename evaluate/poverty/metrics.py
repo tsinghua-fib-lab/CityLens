@@ -65,8 +65,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     model_name_full = args.model_name.replace("/", "_")
-    response_path = f'/data5/liutianhui/UrbanSensing/results/poverty/{args.task_name}/{args.city_name}/{model_name_full}_{args.prompt_type}_response.json'
-    summary_path = f'/data5/liutianhui/UrbanSensing/results/poverty/{args.task_name}_summary.csv'
+    response_path = f''
+    summary_path = f''
     y_true, y_pred = process_json(response_path)
     if len(y_true) == 0 or len(y_pred) == 0:
         print("No valid data found.")

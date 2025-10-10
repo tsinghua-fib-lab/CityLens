@@ -5,47 +5,36 @@ import os
 import random
 import json
 import argparse
-# from pycitydata.map import Map
 from tqdm import tqdm
 from multiprocessing import Pool
 from evaluate.utils import get_response_mllm_api, convert_image_to_webp_base64
 from config import STV_NUM, HOUSE_PRICE_US_NUM
 random.seed(42)
 
-
-### prompt提供图片，城市，地理位置，地理知识
 def data_gen_simple(city):
-    data_path = f'/data5/liutianhui/UrbanSensing/data/house_price/US/{city}_ct_house_price_avg.csv'
-    ct_sat_stv_path = f'/data5/liutianhui/UrbanSensing/data/US_image/sat/{city}_ct_sat_stv.json'
-    task_path = f'/data5/liutianhui/UrbanSensing/data/house_price/US/{city}_house_price_task.json'
+    data_path = f''
+    ct_sat_stv_path = f''
+    task_path = f''
     df = pd.read_csv(data_path, dtype={'ct': str})
     with open(ct_sat_stv_path, 'r') as f:
         ct_sat_stv = json.load(f)
-    prefix = f'/data5/liutianhui/UrbanSensing/data/US_image/sat/{city}/'
+    prefix = f''
     prompt = f"Suppose you are a professional real estate appraisal expert in {city}, United States. Based on the provided satellite imagery and several street view photos, please estimate 'the market value of the home' in the census tract where the images are taken. Consider factors such as location, visible property features, neighborhood condition, and any other relevant details."
     all_data = []
 
 
     for _, row in df.iterrows():
-        ct = row['ct']  # 确保 key 是字符串
+        ct = row['ct']
         if ct not in ct_sat_stv:
-            # print(f"ct {ct} 不在 JSON 里，跳过")
             continue
 
         sat_path = ct_sat_stv[ct]['sat_path']
         stv_paths_all = ct_sat_stv[ct]['stv_paths']
-
-        # 拼接 sat_path 完整路径
         sat_path_full = os.path.join(prefix, sat_path) + ".png"
-
-        # 如果超过STV_NUM张，随机选STV_NUM张；否则用全部
         if len(stv_paths_all) > STV_NUM:
             stv_paths = random.sample(stv_paths_all, STV_NUM)
         else:
-            print(f"ct {ct} 的街景图片数量不足，使用全部 {len(stv_paths_all)} 张")
             stv_paths = stv_paths_all
-
-        # 最后组成image列表
         images = [sat_path_full] + stv_paths
         reference = round(row['avg_price_2020_06_30'],3)
         if not pd.isna(reference):
@@ -55,25 +44,16 @@ def data_gen_simple(city):
                 'prompt': prompt,
                 'reference': reference
             })
-
     with open(task_path, 'w', encoding='utf-8') as f:
         json.dump(all_data, f, indent=4, ensure_ascii=False)
-    print(f"已保存到 {task_path}")
-    print(f"数据生成完成，共 {len(all_data)} 条数据")
     
-
 def generate_session_simple(city, data, prompt_type, model_name):
-    """
-    根据输入的数据生成交替的文本和图片（url）结构，并返回prompt数据
-    """
-    url_file = "/data5/liutianhui/ossutil-2.0.3/url_mapping_urbansensing_20250506_1month.csv"
+    url_file = ""
     df_url = pd.read_csv(url_file)
     url_dict = dict(zip(df_url['image_name'], df_url['image_url']))
     prompt = data['prompt']
     
     content = []
-    
-    # 先添加文本部分
     content.append({
         "type": "text",
         "text": prompt
@@ -83,13 +63,10 @@ def generate_session_simple(city, data, prompt_type, model_name):
     
     for i, image_path in enumerate(images):
         image_name = os.path.basename(image_path)
-        # 查找对应 url
         image_url = url_dict.get(image_name)
         if not image_url:
-            raise ValueError(f"❌ 没有在 mapping 文件中找到 {image_name} 的 URL")
-        
+            raise ValueError
         if i == 0:
-            # 对于第一张图片，添加 satellite image 的描述，并插入其 Base64 编码
             content.append({
                 "type": "text",
                 "text": "Satellite image: "
@@ -102,7 +79,6 @@ def generate_session_simple(city, data, prompt_type, model_name):
             })
             
         else:
-            # 对于后续图片，添加 street view image {i} 的描述，并插入其 url
             content.append({
                 "type": "text",
                 "text": f"Street view image {i}: "
@@ -133,90 +109,6 @@ def generate_session_simple(city, data, prompt_type, model_name):
     }]
     return session
 
-def generate_session_map(city, data):
-    """
-    在prompt中加入地理知识
-    """
-    geoinfo_csv_path = f'/data5/liutianhui/UrbanSensing/data/economic/house_price/US/{city}_house_price_task_image_address_place.csv'
-    df_geoinfo = pd.read_csv(geoinfo_csv_path)
-    prompt = f"Suppose you are a professional real estate appraisal expert in {city}, United States. Based on the provided satellite imagery and several street view photos(with their corresponding addresses and nearby places), please estimate 'the market value of the home' in the census tract where the images are taken. Consider factors such as location, visible property features, neighborhood condition, and any other relevant details."
-    image_info_dict = {}
-    for _, row in df_geoinfo.iterrows():
-        image = row['image']
-        address = row['address']
-        nearby_pois = eval(row['nearby_pois'])  # 将字符串转换为实际的列表结构
-        image_info_dict[image] = {
-            "address": address,
-            "nearby_pois": nearby_pois
-        }
-    content = []
-    
-    # 先添加文本部分
-    content.append({
-        "type": "text",
-        "text": prompt
-    })
-    
-    images = data.get("images", [])
-    
-    for i, image_path in enumerate(images):
-        assert os.path.exists(image_path), f"Image {image_path} not found"
-
-        # 生成图片的 Base64 编码
-        base64_image = convert_image_to_webp_base64(image_path)
-        
-        if i == 0:
-            # 对于第一张图片，添加 satellite image 的描述，并插入其 Base64 编码
-            content.append({
-                "type": "text",
-                "text": "Satellite image: "
-            })
-            content.append({
-                "type": "image_url",
-                "image_url": {
-                    "url": f"data:image/jpeg;base64,{base64_image}"
-                }
-            })
-            
-        else:
-            # 后续图片是street view image
-            image_info = image_info_dict[image_path]
-            address = image_info['address']
-            nearby_pois = image_info['nearby_pois']
-            geo_info = f"Address: {address}\nNearby places: "
-            # 格式化附近 POI 信息
-            nearby_places_info = []
-            for poi in nearby_pois:
-                poi_name, poi_distance = poi
-                nearby_places_info.append(f"{poi_distance} km, {poi_name}")
-            geo_info += "\n".join(nearby_places_info)
-
-            content.append({
-                "type": "text",
-                "text": f"Street view image {i}: "
-            })
-            content.append({
-                "type": "image_url",
-                "image_url": {
-                    "url": f"data:image/jpeg;base64,{base64_image}"
-                }
-            })
-            content.append({
-                "type": "text",
-                "text": f"Street view image {i} geoinformation: \n{geo_info}"
-            })
-            
-    content.append({
-        "type": "text",
-        "text": "Please provide a single, exact home value number only (not a range). No explanation is needed.\n Example answer: 516340"
-    })
-
-    session = [{
-        "role": "user",
-        "content": content
-    }]
-    return session
-
 
 def single_eval_task(args):
     city, model_name, d, prompt_type = args
@@ -224,7 +116,6 @@ def single_eval_task(args):
         session = generate_session_simple(city, d, prompt_type, model_name)
     elif prompt_type == "map":
         session = generate_session_map(city, d)
-    # print(session)
     reference = d["reference"]
     reference_normalized = d["reference_normalized"]
     img_path = d["images"]
@@ -240,11 +131,11 @@ def single_eval_task(args):
 
 def eval_task(city, model_name, num_process, prompt_type):
     if city == "all":
-        task_path = f"/data5/liutianhui/UrbanSensing/data/house_price/all_house_price_task.json"
+        task_path = f""
     else:
-        task_path = f'/data5/liutianhui/UrbanSensing/data/house_price/US/{city}_house_price_task.json'
+        task_path = f''
     model_name_full = model_name.replace("/", "_")
-    response_path = f'/data5/liutianhui/UrbanSensing/results/house_price/{city}/{model_name_full}_{prompt_type}_house_price_response.json'
+    response_path = f''
     output_dir = os.path.dirname(response_path)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir, exist_ok=True)
@@ -252,13 +143,10 @@ def eval_task(city, model_name, num_process, prompt_type):
         data = json.load(f)
     if len(data) > HOUSE_PRICE_US_NUM:
         data = random.sample(data, HOUSE_PRICE_US_NUM) 
-    # if args.data_name == "mini":
-    #     data = data[:10]
     args_list = [(city, model_name, d, prompt_type) for d in data]
     response = []
     with Pool(num_process) as pool:
         print("Processing tasks in parallel...")
-        # 使用 imap 处理每个任务
         for result in tqdm(pool.imap(single_eval_task, args_list), total=len(data)):
             if result:
                 response.append(result)
