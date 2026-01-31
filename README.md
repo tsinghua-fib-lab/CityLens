@@ -2,6 +2,10 @@
 
 This repo is for CityLens: Evaluating Large Vision-Language Models for Urban Socioeconomic Sensing
 
+## 📢 News
+
+- 🎉: (2026.01) CityLens has been accepted to **ICLR 2026**.
+
 ## Introduction
 
 In this work, we introduce ***CityLens***, a comprehensive benchmark designed to evaluate the capabilities of large vision-language models (LVLMs) in predicting socioeconomic indicators from satellite and street view imagery. We construct a multi-modal dataset covering a total of 17 globally distributed cities, spanning 6 key domains: economy, education, crime, transport, health, and environment, reflecting the multifaceted nature of urban life. Based on this dataset, we define 11 prediction tasks and utilize three evaluation paradigms: Direct Metric Prediction, Normalized Metric Estimation, and Feature-Based Regression. We benchmark 17 state-of-the-art LVLMs across these tasks. Our results reveal that while LVLMs demonstrate promising perceptual and reasoning capabilities, they still exhibit limitations in predicting urban socioeconomic indicators. CityLens provides a unified framework for diagnosing these limitations and guiding future efforts in using LVLMs to understand and predict urban socioeconomic patterns.
